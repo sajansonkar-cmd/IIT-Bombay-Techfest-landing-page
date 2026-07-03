@@ -9,6 +9,8 @@ export class HolographicHero {
     this.canvas = canvas;
     this.THREE = window.THREE;
     this.supported = Boolean(canvas && this.THREE);
+    this.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.interactivePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     this.running = false;
     this.frameId = 0;
     this.compact = false;
@@ -119,7 +121,10 @@ export class HolographicHero {
   }
 
   bindEvents() {
-    window.addEventListener("pointermove", this.handlePointerMove, { passive: true });
+    if (this.interactivePointer) {
+      window.addEventListener("pointermove", this.handlePointerMove, { passive: true });
+    }
+
     window.addEventListener("resize", this.handleResize, { passive: true });
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
 
@@ -145,7 +150,8 @@ export class HolographicHero {
     const height = Math.max(1, Math.floor(bounds.height));
 
     this.compact = width < 760;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HERO_CONFIG.dprMax));
+    const dprCap = this.compact ? Math.min(HERO_CONFIG.dprMax, 1.35) : HERO_CONFIG.dprMax;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
     this.renderer.setSize(width, height, false);
 
     this.camera.aspect = width / height;
@@ -162,6 +168,10 @@ export class HolographicHero {
     this.cyborg.setCompact(this.compact);
     this.scannerRings.setCompact(this.compact);
     this.holograms.setCompact(this.compact);
+
+    if (this.prefersReducedMotion || !this.running) {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   handleVisibilityChange() {
@@ -175,6 +185,11 @@ export class HolographicHero {
 
   start() {
     if (!this.supported || this.running) {
+      return;
+    }
+
+    if (this.prefersReducedMotion) {
+      this.renderer.render(this.scene, this.camera);
       return;
     }
 
